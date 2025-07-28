@@ -1,1 +1,2 @@
-Flask==3.1.1\ngunicorn==21.2.0
+Flask==3.1.1
+gunicorn==21.2.0
