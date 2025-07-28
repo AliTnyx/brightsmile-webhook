@@ -2,11 +2,20 @@
 """
 Simple webhook server for BrightSmile Dental appointment management
 """
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 import json
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
+
+@app.after_request
+def after_request(response):
+    """Add headers for webhook compatibility"""
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    response.headers.add('Content-Type', 'application/json')
+    return response
 
 # Mock appointment data
 appointments = {
@@ -34,10 +43,46 @@ available_slots = [
     "2025-08-01 11:00 AM"
 ]
 
-@app.route('/webhook', methods=['POST'])
+@app.route('/', methods=['GET', 'POST'])
+def root():
+    """Root endpoint for Telnyx validation"""
+    if request.method == 'GET':
+        return jsonify({
+            "service": "BrightSmile Dental Webhook",
+            "status": "online",
+            "timestamp": datetime.now().isoformat()
+        })
+    else:
+        return handle_webhook_request()
+
+@app.route('/webhook', methods=['GET', 'POST'])
 def handle_webhook():
+    """Main webhook endpoint"""
+    if request.method == 'GET':
+        return jsonify({
+            "service": "BrightSmile Dental Appointment Manager",
+            "status": "ready",
+            "endpoints": [
+                "POST /webhook - Main webhook handler",
+                "GET /health - Health check",
+                "GET / - Service info"
+            ]
+        })
+    else:
+        return handle_webhook_request()
+
+def handle_webhook_request():
+    """Handle the actual webhook logic"""
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
+        
+        # Handle Telnyx validation requests
+        if 'type' in data or 'event_type' in data:
+            return jsonify({
+                "status": "received",
+                "message": "Telnyx webhook received successfully"
+            })
+        
         action = data.get('action', '').lower()
         patient_name = data.get('patient_name', '').lower()
         
